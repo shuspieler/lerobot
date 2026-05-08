@@ -64,6 +64,7 @@ class OpenCVCameraConfig(CameraConfig):
     warmup_s: int = 1
     fourcc: str | None = None
     backend: Cv2Backends = Cv2Backends.ANY
+    calib_file: str | None = None  # 标定文件路径（JSON），设置后自动去畸变
 
     def __post_init__(self) -> None:
         self.color_mode = ColorMode(self.color_mode)

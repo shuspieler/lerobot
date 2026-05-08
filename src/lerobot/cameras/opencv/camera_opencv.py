@@ -17,6 +17,7 @@ Provides the OpenCVCamera class for capturing frames from cameras using OpenCV.
 """
 
 import logging
+import json
 import math
 import os
 import platform
@@ -26,6 +27,7 @@ from threading import Event, Lock, Thread
 from typing import Any
 
 from numpy.typing import NDArray  # type: ignore  # TODO: add type stubs for numpy.typing
+import numpy as np
 
 # Fix MSMF hardware transform compatibility for Windows before importing cv2
 if platform.system() == "Windows" and "OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS" not in os.environ:
@@ -118,6 +120,10 @@ class OpenCVCamera(Camera):
         self.new_frame_event: Event = Event()
 
         self.rotation: int | None = get_cv2_rotation(config.rotation)
+
+        # 去畸变：加载标定文件，延迟初始化 remap（需要知道实际分辨率）
+        self._calib_file: str | None = config.calib_file
+        self._remap: tuple | None = None  # (map1, map2)，connect 后初始化
         self.backend: int = config.backend
 
         if self.height and self.width:
@@ -175,6 +181,10 @@ class OpenCVCamera(Camera):
             with self.frame_lock:
                 if self.latest_frame is None:
                     raise ConnectionError(f"{self} failed to capture frames during warmup.")
+
+        # 加载标定文件并预计算 remap maps
+        if self._calib_file is not None:
+            self._init_remap()
 
         logger.info(f"{self} connected.")
 
@@ -385,6 +395,24 @@ class OpenCVCamera(Camera):
 
         return frame
 
+    def _init_remap(self) -> None:
+        """从标定 JSON 文件加载参数并预计算 cv2.remap 映射表。"""
+        calib_path = Path(self._calib_file)
+        if not calib_path.exists():
+            logger.warning(f"{self} calib_file not found: {calib_path}, undistortion disabled.")
+            self._calib_file = None
+            return
+        with open(calib_path) as f:
+            params = json.load(f)
+        mtx = np.array(params["camera_matrix"])
+        dist = np.array(params["dist_coeffs"])
+        new_mtx = np.array(params["new_camera_matrix"])
+        w = params.get("image_width", self.config.width)
+        h = params.get("image_height", self.config.height)
+        map1, map2 = cv2.initUndistortRectifyMap(mtx, dist, None, new_mtx, (w, h), cv2.CV_16SC2)
+        self._remap = (map1, map2)
+        logger.info(f"{self} undistortion enabled from {calib_path} (reprojection_error={params.get('reprojection_error', 'N/A')})")
+
     def _postprocess_image(self, image: NDArray[Any]) -> NDArray[Any]:
         """
         Applies color conversion, dimension validation, and rotation to a raw frame.
@@ -422,6 +450,11 @@ class OpenCVCamera(Camera):
 
         if self.rotation in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE, cv2.ROTATE_180]:
             processed_image = cv2.rotate(processed_image, self.rotation)
+
+        # 去畸变（在颜色转换和旋转之后应用）
+        if self._remap is not None:
+            map1, map2 = self._remap
+            processed_image = cv2.remap(processed_image, map1, map2, cv2.INTER_LINEAR)
 
         return processed_image
 
