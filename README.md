@@ -134,6 +134,28 @@ Learn how to implement your own simulation environment or benchmark and distribu
 - **[X](https://x.com/LeRobotHF):** Follow us on X to stay up-to-date with the latest developments.
 - **[Robot Learning Tutorial](https://huggingface.co/spaces/lerobot/robot-learning-tutorial):** A free, hands-on course to learn robot learning using LeRobot.
 
+## Camera Calibration
+
+To reduce lens distortion and improve policy generalization, this fork includes a camera calibration toolkit at [`camera_calibration/`](./camera_calibration/README.md).
+
+Pre-calibrated parameters for **FHHL lab cameras (2025-05-09)** are already provided:
+
+| Camera | `index_or_path` | Calibration file |
+|--------|----------------|-----------------|
+| front (`/dev/video4`) | `4` | `camera_calibration/calib_params/calib_follower_1.json` |
+| top (`/dev/video2`)   | `2` | `camera_calibration/calib_params/calib_top.json` |
+| spare front (`/dev/video0`) | `0` | `camera_calibration/calib_params/calib_follower_2.json` |
+
+Pass the calibration file via `calib_file` in `--robot.cameras` to enable per-frame undistortion during recording and rollout:
+
+```bash
+--robot.cameras="{ front: {type: opencv, index_or_path: 4, width: 640, height: 480, fps: 30, calib_file: camera_calibration/calib_params/calib_follower_1.json}, top: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30, calib_file: camera_calibration/calib_params/calib_top.json}}"
+```
+
+See **[`camera_calibration/README.md`](./camera_calibration/README.md)** for full usage, re-calibration instructions, and tool reference.
+
+---
+
 ## Citation
 
 If you use LeRobot in your project, please cite the GitHub repository to acknowledge the ongoing development and contributors:
