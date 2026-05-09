@@ -13,8 +13,8 @@ camera_calibration/
 ├── camera_viewer.py         # 多摄像头浏览器预览（确认摄像头 index）
 ├── verify_undistort.py      # 实时左右对比验证去畸变效果
 └── calib_params/            # 标定结果存放目录
-    ├── calib_follower_1.json    # front 摄像头（/dev/video4，index=4）
-    ├── calib_follower_2.json    # 备用 front 摄像头（/dev/video0，index=0）
+    ├── calib_follower_1.json    # follower_1 摄像头（/dev/video4，index=4）
+    ├── calib_follower_2.json    # follower_2 摄像头（/dev/video0，index=0）
     ├── calib_top.json           # top 摄像头（/dev/video2，index=2）
     └── res.md                   # 标定运行日志（原始终端输出）
 ```
